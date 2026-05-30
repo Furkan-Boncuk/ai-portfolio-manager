@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+bun.lockb
+bun.lock
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test
+coverage/
+.nyc_output/
+
+# Project documentation (internal planning docs)
+AGENTS.md
+COPY_TO_CODING_AGENT.md
+README.md
+docs/
