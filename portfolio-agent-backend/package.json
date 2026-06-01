@@ -1,0 +1,22 @@
+{
+  "name": "portfolio-agent-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:worker": "bun run --cwd apps/worker dev",
+    "typecheck": "bun run --cwd apps/api typecheck && bun run --cwd apps/worker typecheck",
+    "test": "bun test",
+    "db:generate": "bun run --cwd packages/db generate",
+    "db:migrate": "bun run --cwd packages/db migrate",
+    "db:seed": "bun run --cwd packages/db seed"
+  },
+  "dependencies": {
+    "typescript": "^5.7.0"
+  }
+}

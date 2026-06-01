@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@portfolio-agent/shared": ["./packages/shared/src"],
+      "@portfolio-agent/shared/*": ["./packages/shared/src/*"],
+      "@portfolio-agent/db": ["./packages/db/src"],
+      "@portfolio-agent/db/*": ["./packages/db/src/*"],
+      "@portfolio-agent/agent-core": ["./packages/agent-core/src"],
+      "@portfolio-agent/agent-core/*": ["./packages/agent-core/src/*"],
+      "@portfolio-agent/market-data": ["./packages/market-data/src"],
+      "@portfolio-agent/market-data/*": ["./packages/market-data/src/*"],
+      "@portfolio-agent/signal-engine": ["./packages/signal-engine/src"],
+      "@portfolio-agent/signal-engine/*": ["./packages/signal-engine/src/*"],
+      "@portfolio-agent/notifications": ["./packages/notifications/src"],
+      "@portfolio-agent/notifications/*": ["./packages/notifications/src/*"]
+    }
+  },
+  "include": ["apps/**/*.ts", "packages/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

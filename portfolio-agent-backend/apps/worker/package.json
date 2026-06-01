@@ -1,0 +1,19 @@
+{
+  "name": "@portfolio-agent/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@portfolio-agent/db": "workspace:*",
+    "@portfolio-agent/shared": "workspace:*",
+    "drizzle-orm": "0.38.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

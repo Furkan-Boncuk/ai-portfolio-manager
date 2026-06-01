@@ -1,0 +1,117 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-portfolio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portfolio_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-portfolio_agent}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portfolio} -d ${POSTGRES_DB:-portfolio_agent}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./portfolio-agent-backend
+      dockerfile: Dockerfile
+    command: bun run dev:api
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://portfolio:portfolio_pass@postgres:5432/portfolio_agent}
+      LOCAL_AUTH_TOKEN: ${LOCAL_AUTH_TOKEN:-dev-local-token-change-me}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/api}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:8b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      BINANCE_PUBLIC_BASE_URL: ${BINANCE_PUBLIC_BASE_URL:-https://api.binance.com}
+      MARKET_DATA_PROVIDER: ${MARKET_DATA_PROVIDER:-binance}
+      WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-30000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./portfolio-agent-backend:/app
+      - /app/node_modules
+
+  worker:
+    build:
+      context: ./portfolio-agent-backend
+      dockerfile: Dockerfile
+    command: bun run dev:worker
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://portfolio:portfolio_pass@postgres:5432/portfolio_agent}
+      LOCAL_AUTH_TOKEN: ${LOCAL_AUTH_TOKEN:-dev-local-token-change-me}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/api}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:8b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      BINANCE_PUBLIC_BASE_URL: ${BINANCE_PUBLIC_BASE_URL:-https://api.binance.com}
+      MARKET_DATA_PROVIDER: ${MARKET_DATA_PROVIDER:-binance}
+      WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-30000}
+      MAX_DAILY_SIGNALS: ${MAX_DAILY_SIGNALS:-20}
+      SIGNAL_COOLDOWN_MINUTES: ${SIGNAL_COOLDOWN_MINUTES:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - ./portfolio-agent-backend:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: ./portfolio-agent-frontend
+      dockerfile: Dockerfile
+    command: bun run dev
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
+      VITE_SSE_URL: ${VITE_SSE_URL:-http://localhost:3000/api/v1/events/stream}
+    depends_on:
+      - api
+    restart: unless-stopped
+    volumes:
+      - ./portfolio-agent-frontend:/app
+      - /app/node_modules
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    profiles:
+      - full
+      - redis
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    profiles:
+      - full
+      - ollama
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_models:
+  app_storage:
