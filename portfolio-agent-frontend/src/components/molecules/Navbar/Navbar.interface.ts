@@ -12,6 +12,7 @@ export const navItems: NavItem[] = [
   { path: "/knowledge", label: "Knowledge" },
   { path: "/agents", label: "Agents" },
   { path: "/tools", label: "Tools" },
+  { path: "/settings", label: "Settings" },
   { path: "/chat", label: "Chat" },
   { path: "/signals", label: "Signals" },
   { path: "/positions", label: "Positions" },
