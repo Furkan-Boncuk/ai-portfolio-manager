@@ -1,11 +1,6 @@
 import { clsx } from "clsx";
-import type { LucideIcon } from "lucide-react";
+import type { SectionHeaderProps } from "./SectionHeader.interface";
 
-interface SectionHeaderProps {
-  icon: LucideIcon;
-  title: string;
-  className?: string;
-}
 
 export function SectionHeader({ icon: Icon, title, className }: SectionHeaderProps) {
   return (

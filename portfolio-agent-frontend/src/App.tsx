@@ -6,6 +6,7 @@ import Signals from "./pages/Signals";
 import Chat from "./pages/Chat";
 import Processing from "./pages/Processing";
 import DecisionsPage from "./pages/Decisions/DecisionsPage";
+import PositionsPage from "./pages/Positions/PositionsPage";
 
 const navItems = [
   { path: "/", label: "Portfolio" },
@@ -13,6 +14,7 @@ const navItems = [
   { path: "/decisions", label: "Decisions" },
   { path: "/chat", label: "Chat" },
   { path: "/signals", label: "Signals" },
+  { path: "/positions", label: "Positions" },
 ];
 
 function Navbar() {
@@ -53,6 +55,7 @@ function App() {
             <Route path="/processing" element={<Processing />} />
             <Route path="/decisions" element={<DecisionsPage />} />
             <Route path="/signals" element={<Signals />} />
+            <Route path="/positions" element={<PositionsPage />} />
             <Route path="/chat" element={<Chat />} />
           </Routes>
         </main>

@@ -1,9 +1,6 @@
 import { clsx } from "clsx";
+import type { EmptyCardProps } from "./EmptyCard.interface";
 
-interface EmptyCardProps {
-  children: string;
-  className?: string;
-}
 
 export function EmptyCard({ children, className }: EmptyCardProps) {
   return (

@@ -1,16 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { http } from "../../lib/api";
 import { Shield, Target, FileText, Activity, AlertTriangle } from "lucide-react";
-import { SectionHeader } from "../../components/atoms/SectionHeader";
-import { EmptyCard } from "../../components/atoms/EmptyCard";
-
-interface DecisionsData {
-  riskProfile: string;
-  goals: { title: string; target: string; progress: string }[];
-  strategyConfigs: { name: string; type: string; timeframe: string }[];
-  theses: { title: string; status: string }[];
-  monitoringRules: { rule: string; enabled: boolean }[];
-}
+import { SectionHeader } from "../../components/atoms/SectionHeader/SectionHeader";
+import { EmptyCard } from "../../components/atoms/EmptyCard/EmptyCard";
+import type { DecisionsData } from "./Decisions.interface";
 
 export default function DecisionsPage() {
   const { data, isLoading } = useQuery<DecisionsData>({
