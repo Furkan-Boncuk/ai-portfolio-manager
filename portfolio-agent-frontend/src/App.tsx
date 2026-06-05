@@ -9,6 +9,7 @@ import DecisionsPage from "./pages/Decisions/DecisionsPage";
 import PositionsPage from "./pages/Positions/PositionsPage";
 import KnowledgePage from "./pages/Knowledge/KnowledgePage";
 import AgentsPage from "./pages/Agents/AgentsPage";
+import ToolsPage from "./pages/Tools/ToolsPage";
 import { Navbar } from "./components/molecules/Navbar/Navbar";
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
             <Route path="/decisions" element={<DecisionsPage />} />
             <Route path="/knowledge" element={<KnowledgePage />} />
             <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/tools" element={<ToolsPage />} />
             <Route path="/signals" element={<Signals />} />
             <Route path="/positions" element={<PositionsPage />} />
             <Route path="/chat" element={<Chat />} />
