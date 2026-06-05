@@ -1,4 +1,5 @@
 import { Direction } from "../../components/molecules/Positions/DirectionIcon/DirectionIcon.interface";
+import type { BadgeVariant } from "../../components/atoms/Badge/Badge.interface";
 
 export interface Position {
   id: string;
@@ -20,3 +21,10 @@ export interface PositionsData {
   data: Position[];
   total: number;
 }
+
+export const statusVariant: Record<Position["status"], BadgeVariant> = {
+  open: "success",
+  closed: "info",
+  cancelled: "neutral",
+  manual: "warning",
+};

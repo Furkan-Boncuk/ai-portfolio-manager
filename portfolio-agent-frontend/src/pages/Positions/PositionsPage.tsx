@@ -6,8 +6,7 @@ import { EmptyCard } from "../../components/atoms/EmptyCard/EmptyCard";
 import { Badge } from "../../components/atoms/Badge/Badge";
 import { DirectionIcon } from "../../components/molecules/Positions/DirectionIcon/DirectionIcon";
 import { PnlDisplay } from "../../components/molecules/Positions/PnlDisplay/PnlDisplay";
-import { statusVariant } from "../../utils/positions/statusVariant";
-import type { PositionsData } from "./Positions.interface";
+import { statusVariant, type PositionsData } from "./Positions.interface";
 
 export default function PositionsPage() {
   const { data, isLoading } = useQuery<PositionsData>({
