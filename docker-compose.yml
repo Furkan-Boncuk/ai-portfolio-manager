@@ -5,8 +5,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-portfolio}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portfolio_pass}
       POSTGRES_DB: ${POSTGRES_DB:-portfolio_agent}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # ports:
+    #   - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -42,6 +42,14 @@ services:
     volumes:
       - ./portfolio-agent-backend:/app
       - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/apps/worker/node_modules
+      - /app/packages/db/node_modules
+      - /app/packages/shared/node_modules
+      - /app/packages/market-data/node_modules
+      - /app/packages/notifications/node_modules
+      - /app/packages/signal-engine/node_modules
+      - /app/packages/agent-core/node_modules
 
   worker:
     build:
@@ -70,6 +78,14 @@ services:
     volumes:
       - ./portfolio-agent-backend:/app
       - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/apps/worker/node_modules
+      - /app/packages/db/node_modules
+      - /app/packages/shared/node_modules
+      - /app/packages/market-data/node_modules
+      - /app/packages/notifications/node_modules
+      - /app/packages/signal-engine/node_modules
+      - /app/packages/agent-core/node_modules
 
   frontend:
     build:

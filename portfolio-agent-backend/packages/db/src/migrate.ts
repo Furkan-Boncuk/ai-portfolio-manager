@@ -3,7 +3,7 @@ import { getDb } from "./index";
 
 async function run() {
   const db = getDb();
-  await migrate(db, { migrationsFolder: "./packages/db/migrations" });
+  await migrate(db, { migrationsFolder: "./migrations" });
   console.log("Migrations completed");
   process.exit(0);
 }

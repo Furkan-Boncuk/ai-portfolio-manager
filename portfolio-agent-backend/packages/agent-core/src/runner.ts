@@ -45,7 +45,7 @@ export class AgentRunner {
     }
   }
 
-  async chat(userMessage: string, context?: string): Promise<string> {
+  async chat(userMessage: string, history?: ChatMessage[], context?: string): Promise<string> {
     const available = await this.llm.isAvailable();
     if (!available) {
       return "Ollama is not available. Please start Ollama or configure an LLM provider.";
@@ -55,8 +55,9 @@ export class AgentRunner {
       {
         role: "system",
         content:
-          `You are a portfolio AI assistant. Help with portfolio analysis, market questions, and signal explanations. Be concise. Never guarantee profits. Always include risk warnings. Answer in Turkish.\n${context ? `Context: ${context}` : ""}`,
+          `You are a portfolio AI assistant. Help with portfolio analysis, market questions, and signal explanations. Be very concise (max 3 sentences). Never guarantee profits. Always include risk warnings. Answer in Turkish.\n${context ? `Context: ${context}` : ""}`,
       },
+      ...(history ?? []),
       { role: "user", content: userMessage },
     ];
 
