@@ -53,6 +53,32 @@ export async function initAuth(): Promise<void> {
   await authWithToken(DEFAULT_TOKEN);
 }
 
+class HttpClient {
+  async get<T>(path: string): Promise<T> {
+    return apiFetch<T>(path);
+  }
+
+  async post<T>(path: string, body?: unknown): Promise<T> {
+    return apiFetch<T>(path, {
+      method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  async patch<T>(path: string, body: unknown): Promise<T> {
+    return apiFetch<T>(path, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async delete<T>(path: string): Promise<T> {
+    return apiFetch<T>(path, { method: "DELETE" });
+  }
+}
+
+export const http = new HttpClient();
+
 export function getSSEUrl(): string {
   return import.meta.env.VITE_SSE_URL ?? `${BASE_URL}/api/v1/events/stream`;
 }
