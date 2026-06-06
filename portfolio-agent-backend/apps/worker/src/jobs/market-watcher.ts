@@ -4,14 +4,14 @@ import { eq, and } from "drizzle-orm";
 import { MockMarketProvider, BinanceProvider } from "@portfolio-agent/market-data";
 import { type MarketDataProvider } from "@portfolio-agent/market-data";
 import { upsertCandles } from "@portfolio-agent/db/repositories/candles";
-import { createSSEEvent, type SSEEvent } from "@portfolio-agent/shared";
+import { createSSEEvent, getEnv, timeframeEnum, type SSEEvent } from "@portfolio-agent/shared";
 
 let provider: MarketDataProvider;
 
 function getProvider(): MarketDataProvider {
   if (!provider) {
-    const providerName = process.env.MARKET_DATA_PROVIDER ?? "mock";
-    provider = providerName === "binance" ? new BinanceProvider() : new MockMarketProvider();
+    const env = getEnv();
+    provider = env.MARKET_DATA_PROVIDER === "binance" ? new BinanceProvider() : new MockMarketProvider();
   }
   return provider;
 }
@@ -47,9 +47,12 @@ export async function runMarketWatcher(
       if (!wa.symbol || !wa.timeframe) continue;
 
       try {
+        const tfResult = timeframeEnum.safeParse(wa.timeframe);
+        if (!tfResult.success) continue;
+
         const candles = await marketProvider.getCandles({
           symbol: wa.symbol,
-          timeframe: wa.timeframe as "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w",
+          timeframe: tfResult.data,
           limit: 100,
         });
 
@@ -77,9 +80,10 @@ export async function runMarketWatcher(
           );
         }
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
         console.error(
           `[market-watcher] error for ${wa.symbol} ${wa.timeframe}:`,
-          (err as Error).message
+          message
         );
       }
     }

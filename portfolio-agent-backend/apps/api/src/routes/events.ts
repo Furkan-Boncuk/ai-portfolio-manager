@@ -1,8 +1,9 @@
 import { Elysia } from "elysia";
-import { createSSEEvent, type SSEEvent } from "@portfolio-agent/shared";
+import { createSSEEvent, sseEventPayloadSchema, type SSEEvent } from "@portfolio-agent/shared";
 import { getDb } from "@portfolio-agent/db";
 import { appEvents } from "@portfolio-agent/db/schema";
 import { desc, gt } from "drizzle-orm";
+import { z } from "zod";
 
 const subscribers = new Set<ReadableStreamDefaultController>();
 let lastDbEventId: string | null = null;
@@ -38,11 +39,13 @@ async function pollDbEvents(): Promise<void> {
     .limit(50);
 
   for (const row of rows.reverse()) {
-    const event = createSSEEvent(
-      row.eventType as SSEEvent["type"],
-      (row.payload as Record<string, unknown>) ?? {},
-      row.source ?? "system"
-    );
+    const typeResult = sseEventPayloadSchema.shape.type.safeParse(row.eventType);
+    if (!typeResult.success) continue;
+
+    const payloadResult = z.record(z.unknown()).safeParse(row.payload);
+    const payload = payloadResult.success ? payloadResult.data : {};
+
+    const event = createSSEEvent(typeResult.data, payload, row.source ?? "system");
     event.id = row.id;
     event.createdAt = row.createdAt.toISOString();
     lastDbEventId = row.id;

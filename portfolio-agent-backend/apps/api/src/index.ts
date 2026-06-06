@@ -1,7 +1,8 @@
 import { app } from "./app";
+import { getEnv } from "@portfolio-agent/shared";
 
-const port = parseInt(process.env.API_PORT ?? "3000", 10);
+const env = getEnv();
 
-app.listen({ port, hostname: "0.0.0.0" });
+app.listen({ port: env.API_PORT, hostname: "0.0.0.0" });
 
-console.log(`API server running on port ${port}`);
+console.log(`API server running on port ${env.API_PORT}`);

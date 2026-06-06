@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 export const envSchema = z.object({
+  API_PORT: z
+    .string()
+    .default("3000")
+    .transform((v) => parseInt(v, 10)),
   DATABASE_URL: z.string().min(1),
   LOCAL_AUTH_TOKEN: z.string().min(1),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
@@ -23,6 +27,7 @@ export const envSchema = z.object({
     .string()
     .default("30")
     .transform((v) => parseInt(v, 10)),
+  DEFAULT_USER_ID: z.string().default("fc650a01-85f1-4d63-afec-f3b7c99c5272"),
 });
 
 export type Env = z.infer<typeof envSchema>;
