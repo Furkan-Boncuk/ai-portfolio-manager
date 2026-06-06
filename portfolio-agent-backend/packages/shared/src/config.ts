@@ -27,6 +27,7 @@ export const envSchema = z.object({
     .string()
     .default("30")
     .transform((v) => parseInt(v, 10)),
+  DEFAULT_USER_ID: z.string().default("fc650a01-85f1-4d63-afec-f3b7c99c5272"),
 });
 
 export type Env = z.infer<typeof envSchema>;
