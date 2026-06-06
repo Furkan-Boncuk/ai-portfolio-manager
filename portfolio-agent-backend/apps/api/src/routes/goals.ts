@@ -1,7 +1,10 @@
 import { Elysia } from "elysia";
+import { GoalService } from "../services/goals/GoalService";
+
+const goalService = new GoalService();
 
 export const goalsRoutes = new Elysia({ prefix: "/goals" })
-  .get("/", () => ({ message: "Not implemented", status: 501 }))
-  .post("/", () => ({ message: "Not implemented", status: 501 }))
-  .get("/:id", () => ({ message: "Not implemented", status: 501 }))
-  .patch("/:id", () => ({ message: "Not implemented", status: 501 }));
+  .get("/", () => goalService.list())
+  .post("/", () => goalService.create())
+  .get("/:id", () => goalService.getById())
+  .patch("/:id", () => goalService.update());
