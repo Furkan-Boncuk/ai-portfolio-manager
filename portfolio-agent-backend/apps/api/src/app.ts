@@ -13,8 +13,9 @@ import { chatRoutes } from "./routes/chat";
 import { agentRoutes } from "./routes/agent";
 import { notificationRoutes } from "./routes/notifications";
 import { eventsRoutes } from "./routes/events";
+import { getEnv, AppError, SystemConfigurationError } from "@portfolio-agent/shared";
 
-const token = process.env.LOCAL_AUTH_TOKEN ?? "";
+const env = getEnv();
 
 const app = new Elysia()
   .use(
@@ -31,32 +32,49 @@ const app = new Elysia()
   )
   .use(setupCors)
   .onError(({ error }) => {
-    console.error(`[api] error: ${(error as Error).message}`);
+    if (error instanceof AppError) {
+      return {
+        status: error.statusCode,
+        body: error.toJSON(),
+      };
+    }
+    if (error instanceof Error) {
+      console.error(`[api] error: ${error.message}`);
+      return {
+        status: 500,
+        body: {
+          error: {
+            code: "INTERNAL_ERROR",
+            message: error.message,
+          },
+        },
+      };
+    }
+    console.error(`[api] unknown error: ${String(error)}`);
     return {
-      status: (error as { status?: number }).status ?? 500,
+      status: 500,
       body: {
         error: {
           code: "INTERNAL_ERROR",
-          message: (error as Error).message,
+          message: "An unexpected error occurred",
         },
       },
     };
   })
   .onBeforeHandle(({ path, request, set }) => {
     if (isPublicPath(path)) return;
-    if (!checkAuth(token, request)) {
+    if (!checkAuth(env.LOCAL_AUTH_TOKEN, request)) {
       set.status = 401;
       return { error: { code: "UNAUTHORIZED", message: "Authentication required" } };
     }
   })
   .use(healthRoutes)
   .post("/api/v1/auth/local-session", ({ set }) => {
-    if (!token) {
-      set.status = 500;
-      return { error: "Auth token not configured" };
+    if (!env.LOCAL_AUTH_TOKEN) {
+      throw new SystemConfigurationError("Auth token not configured");
     }
     set.headers["set-cookie"] =
-      `auth_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`;
+      `auth_session=${env.LOCAL_AUTH_TOKEN}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`;
     return { ok: true };
   })
   .group("/api/v1", (api) =>

@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 export const envSchema = z.object({
+  API_PORT: z
+    .string()
+    .default("3000")
+    .transform((v) => parseInt(v, 10)),
   DATABASE_URL: z.string().min(1),
   LOCAL_AUTH_TOKEN: z.string().min(1),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),

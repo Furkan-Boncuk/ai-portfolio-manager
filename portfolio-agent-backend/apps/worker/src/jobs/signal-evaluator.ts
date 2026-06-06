@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { getCandlesForSignal } from "@portfolio-agent/db/repositories/candles";
 import { evaluateScalp, evaluateSwing, type StrategyConfig, type CandleData } from "@portfolio-agent/signal-engine";
 import { createSSEEvent, type SSEEvent, getEnv } from "@portfolio-agent/shared";
+import { z } from "zod";
 import { TelegramProvider } from "@portfolio-agent/notifications";
 
 export async function runSignalEvaluator(
@@ -38,12 +39,18 @@ export async function runSignalEvaluator(
 
     const currentPrice = parseFloat(String(candles[0]?.close ?? "0"));
 
+    const strategyTypeResult = z.enum(["scalp", "swing"]).safeParse(strategy.strategyType);
+    if (!strategyTypeResult.success) continue;
+
+    const paramsResult = z.record(z.number()).safeParse(strategy.params);
+    const strategyParams = paramsResult.success ? paramsResult.data : {};
+
     const config: StrategyConfig = {
       id: strategy.id,
       name: strategy.name,
-      strategyType: strategy.strategyType as "scalp" | "swing",
+      strategyType: strategyTypeResult.data,
       timeframe: strategy.timeframe,
-      params: (strategy.params as Record<string, number>) ?? {},
+      params: strategyParams,
       maxSignalsPerDay: strategy.maxSignalsPerDay ?? 20,
       cooldownMinutes: strategy.cooldownMinutes ?? 60,
     };
@@ -124,9 +131,10 @@ export async function runSignalEvaluator(
           )
         );
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
         console.error(
           `[signal-evaluator] error saving signal for ${symbol}:`,
-          (err as Error).message
+          message
         );
       }
     } else if (result.rejectReason) {

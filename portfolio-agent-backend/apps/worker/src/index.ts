@@ -2,9 +2,10 @@ import { runMarketWatcher } from "./jobs/market-watcher";
 import { runSignalEvaluator } from "./jobs/signal-evaluator";
 import { getDb } from "@portfolio-agent/db";
 import { appEvents } from "@portfolio-agent/db/schema";
-import { createSSEEvent, type SSEEvent } from "@portfolio-agent/shared";
+import { createSSEEvent, getEnv, type SSEEvent } from "@portfolio-agent/shared";
 
-const POLL_INTERVAL = parseInt(process.env.WORKER_POLL_INTERVAL_MS ?? "30000", 10);
+const env = getEnv();
+const POLL_INTERVAL = env.WORKER_POLL_INTERVAL_MS;
 let running = true;
 
 async function publishEventToDb(event: SSEEvent): Promise<void> {
@@ -16,7 +17,8 @@ async function publishEventToDb(event: SSEEvent): Promise<void> {
       payload: event.payload,
     });
   } catch (err) {
-    console.error("[worker] failed to publish event:", (err as Error).message);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[worker] failed to publish event:", message);
   }
 }
 
@@ -34,13 +36,15 @@ async function runJobs(): Promise<void> {
   try {
     await runMarketWatcher(onEvent);
   } catch (err) {
-    console.error("[worker] market watcher error:", (err as Error).message);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[worker] market watcher error:", message);
   }
 
   try {
     await runSignalEvaluator(onEvent);
   } catch (err) {
-    console.error("[worker] signal evaluator error:", (err as Error).message);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[worker] signal evaluator error:", message);
   }
 }
 
