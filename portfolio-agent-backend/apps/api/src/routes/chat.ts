@@ -11,6 +11,11 @@ import {
   updateSessionTimestamp,
 } from "@portfolio-agent/db/repositories/chat";
 
+enum ChatRole {
+  User = "user",
+  Assistant = "assistant",
+}
+
 const runner = new AgentRunner();
 const DEFAULT_USER_ID = "fc650a01-85f1-4d63-afec-f3b7c99c5272";
 
@@ -27,13 +32,13 @@ export const chatRoutes = new Elysia({ prefix: "/chat" })
       });
       const userMsg = await insertMessage({
         sessionId: session.id,
-        role: "user",
+        role: ChatRole.User,
         content: body.message,
       });
       const response = await runner.chat(body.message);
       await insertMessage({
         sessionId: session.id,
-        role: "assistant",
+        role: ChatRole.Assistant,
         content: response,
       });
 
@@ -48,8 +53,8 @@ export const chatRoutes = new Elysia({ prefix: "/chat" })
           sessionId: session.id,
           response,
           messages: [
-            { id: userMsg.id, role: "user", content: body.message },
-            { role: "assistant", content: response },
+            { id: userMsg.id, role: ChatRole.User, content: body.message },
+            { role: ChatRole.Assistant, content: response },
           ],
         },
       };
@@ -77,20 +82,20 @@ export const chatRoutes = new Elysia({ prefix: "/chat" })
 
       const history = await getMessages(params.id);
       const chatHistory = history.map((m) => {
-        const role = m.role === "assistant" ? "assistant" as const : "user" as const;
+        const role = m.role === ChatRole.Assistant ? ChatRole.Assistant : ChatRole.User;
         return { role, content: m.content };
       });
 
       await insertMessage({
         sessionId: params.id,
-        role: "user",
+        role: ChatRole.User,
         content: body.message,
       });
 
       const response = await runner.chat(body.message, chatHistory);
       const assistantMsg = await insertMessage({
         sessionId: params.id,
-        role: "assistant",
+        role: ChatRole.Assistant,
         content: response,
       });
 
@@ -108,7 +113,7 @@ export const chatRoutes = new Elysia({ prefix: "/chat" })
           response,
           message: {
             id: assistantMsg.id,
-            role: "assistant",
+            role: ChatRole.Assistant,
             content: response,
             createdAt: assistantMsg.createdAt,
           },
