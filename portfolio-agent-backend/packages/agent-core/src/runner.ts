@@ -1,4 +1,3 @@
-import { ChatRole } from "apps/api/src/services/chat/ChatService.types";
 import { OllamaProvider } from "./providers/ollama";
 import type { ChatMessage, ToolCall } from "./providers/types";
 import type { Tool } from "./tools/types";
@@ -57,15 +56,30 @@ export class AgentRunner {
     const MAX_TOOL_TURNS = 5;
 
     while (turns < MAX_TOOL_TURNS) {
-      const response = await this.llm.chat(messages, tools);
+      let response: Awaited<ReturnType<typeof this.llm.chat>>;
+
+      try {
+        response = await this.llm.chat(messages, tools);
+      } catch {
+        if (turns === 0) {
+          const res = await this.llm.chat(messages);
+          return res.content;
+        }
+        break;
+      }
+
       turns++;
 
       if (!response.tool_calls || response.tool_calls.length === 0) {
         return response.content;
       }
 
+      if (!response.tool_calls || response.tool_calls.length === 0) {
+        return response.content;
+      }
+
       messages.push({
-        role: ChatRole.Assistant,
+        role: "assistant",
         content: response.content || "",
         tool_calls: response.tool_calls,
       });
@@ -82,8 +96,13 @@ export class AgentRunner {
       }
     }
 
-    const final = await this.llm.chat(messages, tools);
-    return final.content;
+    try {
+      const final = await this.llm.chat(messages, tools);
+      return final.content;
+    } catch {
+      const res = await this.llm.chat(messages);
+      return res.content;
+    }
   }
 
   async reviewSignal(signal: {
