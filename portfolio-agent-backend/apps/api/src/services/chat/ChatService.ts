@@ -2,15 +2,16 @@ import type { AgentRunner } from "@portfolio-agent/agent-core";
 import { getDb } from "@portfolio-agent/db";
 import { getEnv } from "@portfolio-agent/shared";
 import { chatSessions, messages } from "@portfolio-agent/db/schema";
-import type {
-  ChatSession,
-  ChatMessage,
-  CreateSessionResult,
-  ChatInSessionResult,
-} from "./ChatService.types";
+import type { ChatSession, ChatMessage, CreateSessionResult, ChatInSessionResult } from "./ChatService.types";
 import { ChatRole } from "./ChatService.types";
 import { truncate } from "../../utils/string";
 import { eq, desc, sql } from "drizzle-orm";
+
+function toChatContext(
+  history: { role: string; content: string }[],
+): string {
+  return history.map((m) => `${m.role}: ${m.content}`).join("\n");
+}
 
 export class ChatService {
   constructor(private readonly runner: AgentRunner) {}
@@ -35,29 +36,28 @@ export class ChatService {
 
     const [userMsg] = await db
       .insert(messages)
-      .values({ sessionId: session.id, role: ChatRole.User, content: message })
+      .values({ sessionId: session!.id, role: ChatRole.User, content: message })
       .returning();
 
     const response = await this.runner.chat(message);
 
-    await db.insert(messages).values({
-      sessionId: session.id,
-      role: ChatRole.Assistant,
-      content: response,
-    });
+    const [assistantMsg] = await db
+      .insert(messages)
+      .values({ sessionId: session!.id, role: ChatRole.Assistant, content: response })
+      .returning();
 
     await db
       .update(chatSessions)
       .set({ title: truncate(response), updatedAt: sql`now()` })
-      .where(eq(chatSessions.id, session.id));
+      .where(eq(chatSessions.id, session!.id));
 
     return {
       data: {
-        session,
+        session: session!,
         response,
         messages: [
-          { id: userMsg.id, role: ChatRole.User, content: message },
-          { role: ChatRole.Assistant, content: response },
+          { id: userMsg!.id, role: ChatRole.User, content: message },
+          { id: assistantMsg!.id, role: ChatRole.Assistant, content: response },
         ],
       },
     };
@@ -112,7 +112,7 @@ export class ChatService {
       content: message,
     });
 
-    const response = await this.runner.chat(message, chatHistory);
+    const response = await this.runner.chat(message, toChatContext(chatHistory));
 
     const [assistantMsg] = await db
       .insert(messages)
@@ -131,7 +131,7 @@ export class ChatService {
       .set({ updatedAt: sql`now()` })
       .where(eq(chatSessions.id, sessionId));
 
-    return { data: { response, message: assistantMsg } };
+    return { data: { response, message: assistantMsg! } };
   }
 
   async updateSessionTitle(

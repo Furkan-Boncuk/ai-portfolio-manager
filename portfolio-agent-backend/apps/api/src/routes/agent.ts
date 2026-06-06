@@ -1,39 +1,20 @@
 import { Elysia, t } from "elysia";
 import { AgentRunner } from "@portfolio-agent/agent-core";
+import { AgentService } from "../services/agent/AgentService";
 
 const runner = new AgentRunner();
+const agentService = new AgentService(runner);
 
 export const agentRoutes = new Elysia({ prefix: "/agent" })
-  .post(
-    "/chat",
-    async ({ body }) => {
-      const response = await runner.chat(body.message, body.context);
-      return { response };
-    },
-    {
-      body: t.Object({
-        message: t.String(),
-        context: t.Optional(t.String()),
-      }),
-    }
-  )
+  .post("/chat", ({ body }) => agentService.chat(body.message, body.context), {
+    body: t.Object({
+      message: t.String(),
+      context: t.Optional(t.String()),
+    }),
+  })
   .post(
     "/review-signal",
-    async ({ body }) => {
-      const response = await runner.reviewSignal({
-        asset: body.asset,
-        direction: body.direction,
-        timeframe: body.timeframe,
-        entryLow: body.entryLow,
-        entryHigh: body.entryHigh,
-        invalidationPrice: body.invalidationPrice,
-        takeProfit1: body.takeProfit1,
-        riskLevel: body.riskLevel,
-        confidence: body.confidence,
-        reasonSummary: body.reasonSummary,
-      });
-      return { response };
-    },
+    ({ body }) => agentService.reviewSignal(body),
     {
       body: t.Object({
         asset: t.String(),
@@ -47,7 +28,7 @@ export const agentRoutes = new Elysia({ prefix: "/agent" })
         confidence: t.Number(),
         reasonSummary: t.String(),
       }),
-    }
+    },
   )
   .post("/review-portfolio", () => ({ message: "Not implemented", status: 501 }))
   .get("/runs", () => ({ message: "Not implemented", status: 501 }))
