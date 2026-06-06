@@ -41,3 +41,7 @@ AGENTS.md
 COPY_TO_CODING_AGENT.md
 README.md
 docs/
+
+# opencode (local-only skills & config)
+.opencode/
+opencode.json
