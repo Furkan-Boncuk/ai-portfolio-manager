@@ -4,3 +4,4 @@ export { AgentRunner } from "./runner";
 export type { Tool } from "./tools/types";
 export type { WebSearchInput, WebSearchResult, WebSearchProvider } from "./tools/web-search";
 export { WebSearchTool, DuckDuckGoSearchProvider, webSearchInputSchema } from "./tools/web-search";
+export { FetchPageTool, fetchPageInputSchema } from "./tools/fetch-page";

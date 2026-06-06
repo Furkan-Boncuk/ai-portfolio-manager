@@ -1,8 +1,8 @@
 import { Elysia, t } from "elysia";
-import { AgentRunner, WebSearchTool } from "@portfolio-agent/agent-core";
+import { AgentRunner, WebSearchTool, FetchPageTool } from "@portfolio-agent/agent-core";
 import { AgentService } from "../services/agent/AgentService";
 
-const runner = new AgentRunner([new WebSearchTool()]);
+const runner = new AgentRunner([new WebSearchTool(), new FetchPageTool()]);
 const agentService = new AgentService(runner);
 
 export const agentRoutes = new Elysia({ prefix: "/agent" })
