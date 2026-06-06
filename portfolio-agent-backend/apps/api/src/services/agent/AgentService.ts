@@ -7,7 +7,7 @@ export class AgentService {
     message: string,
     context?: string,
   ): Promise<{ response: string }> {
-    const response = await this.runner.chat(message, context);
+    const response = await this.runner.chat(message, undefined, context);
     return { response };
   }
 

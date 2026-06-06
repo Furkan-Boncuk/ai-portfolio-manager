@@ -7,12 +7,6 @@ import { ChatRole } from "./ChatService.types";
 import { truncate } from "../../utils/string";
 import { eq, desc, sql } from "drizzle-orm";
 
-function toChatContext(
-  history: { role: string; content: string }[],
-): string {
-  return history.map((m) => `${m.role}: ${m.content}`).join("\n");
-}
-
 export class ChatService {
   constructor(private readonly runner: AgentRunner) {}
 
@@ -112,7 +106,7 @@ export class ChatService {
       content: message,
     });
 
-    const response = await this.runner.chat(message, toChatContext(chatHistory));
+    const response = await this.runner.chat(message, chatHistory);
 
     const [assistantMsg] = await db
       .insert(messages)
