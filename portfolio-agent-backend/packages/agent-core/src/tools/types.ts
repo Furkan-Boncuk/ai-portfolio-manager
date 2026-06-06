@@ -1,16 +1,6 @@
-export interface ToolInput {
-  query: string;
-  [key: string]: unknown;
-}
-
-export interface ToolResult {
-  success: boolean;
-  data: unknown;
-  error?: string;
-}
+import type { ToolDefinition } from "../providers/types";
 
 export interface Tool {
-  name: string;
-  description: string;
-  execute(input: ToolInput): Promise<ToolResult>;
+  definition: ToolDefinition;
+  execute(input: Record<string, unknown>): Promise<string>;
 }

@@ -1,11 +1,12 @@
 import { z } from "zod";
+import type { Tool } from "./types";
 
 export const webSearchInputSchema = z.object({
   query: z.string().min(1, "Search query is required"),
   maxResults: z.number().int().min(1).max(20).default(5),
 });
 
-export const webSearchResultSchema = z.object({
+const webSearchResultSchema = z.object({
   title: z.string(),
   url: z.string(),
   snippet: z.string(),
@@ -104,7 +105,8 @@ export class DuckDuckGoSearchProvider implements WebSearchProvider {
     let match: RegExpExecArray | null;
     let count = 0;
     while ((match = resultRegex.exec(html)) !== null && count < max) {
-      const url = match[1]?.replace(/\/\/duckduckgo\.com\/l\/\?uddg=/, "") ?? "";
+      const url =
+        match[1]?.replace(/\/\/duckduckgo\.com\/l\/\?uddg=/, "") ?? "";
       const title = match[2]?.replace(/<[^>]*>/g, "").trim() ?? "";
       const snippet = match[3]?.replace(/<[^>]*>/g, "").trim() ?? "";
 
@@ -122,44 +124,56 @@ export class DuckDuckGoSearchProvider implements WebSearchProvider {
   }
 }
 
-export class WebSearchTool {
-  constructor(
-    private provider: WebSearchProvider = new DuckDuckGoSearchProvider(),
-  ) {}
+export class WebSearchTool implements Tool {
+  private provider: WebSearchProvider;
 
-  get name(): string {
-    return "research.webSearch";
+  constructor(provider?: WebSearchProvider) {
+    this.provider = provider ?? new DuckDuckGoSearchProvider();
   }
 
-  get description(): string {
-    return "Search the web for current information on a given query. Returns title, URL, and snippet for each result.";
+  get definition() {
+    return {
+      type: "function" as const,
+      function: {
+        name: "research.webSearch",
+        description:
+          "Search the web for current information on a given query. Returns title, URL, and snippet for each result.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "The search query",
+            },
+            maxResults: {
+              type: "number",
+              description: "Maximum number of results (1-20)",
+              default: 5,
+            },
+          },
+          required: ["query"],
+        },
+      },
+    };
   }
 
-  private safeParse(input: unknown): WebSearchInput {
+  async execute(input: Record<string, unknown>): Promise<string> {
     const parsed = webSearchInputSchema.safeParse(input);
     if (!parsed.success) {
-      throw new Error(
-        `Invalid web search input: ${parsed.error.message}`,
-      );
+      return `Error: Invalid input - ${parsed.error.message}`;
     }
-    return parsed.data;
-  }
 
-  async execute(input: unknown): Promise<{
-    success: boolean;
-    data: WebSearchResult[];
-    error?: string;
-  }> {
-    try {
-      const validated = this.safeParse(input);
-      const results = await this.provider.search(validated);
-      return { success: true, data: results };
-    } catch (error) {
-      return {
-        success: false,
-        data: [],
-        error: error instanceof Error ? error.message : "Web search failed",
-      };
+    const results = await this.provider.search(parsed.data);
+
+    if (results.length === 0) {
+      return "No search results found.";
     }
+
+    return results
+      .map(
+        (r, i) =>
+          `${i + 1}. ${r.title}\n   URL: ${r.url}\n   ${r.snippet}`,
+      )
+      .join("\n\n");
   }
 }
