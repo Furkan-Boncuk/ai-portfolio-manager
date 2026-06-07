@@ -1,14 +1,18 @@
-import { OllamaProvider } from "./providers/ollama";
+import { OllamaProvider } from "./providers/OllamaProvider";
 import type { ChatMessage, ToolCall } from "./providers/types";
 import type { Tool } from "./tools/types";
+
+const DEFAULT_SYSTEM_PROMPT = "You are a portfolio AI assistant with tools. For price queries (BTC, ETH, etc.), use market.cryptoPrice — it gives accurate real-time data from Binance. For news or general info, use research.webSearch. Actually call the tool, do not just say you will. Answer in Turkish. Be concise.";
 
 export class AgentRunner {
   private llm: OllamaProvider;
   private tools: Tool[];
+  private systemPrompt: string;
 
-  constructor(tools?: Tool[]) {
+  constructor(tools?: Tool[], systemPrompt?: string) {
     this.llm = new OllamaProvider();
     this.tools = tools ?? [];
+    this.systemPrompt = systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
   }
 
   private get toolDefinitions() {
@@ -28,7 +32,8 @@ export class AgentRunner {
       return `Error: Invalid arguments JSON for tool "${toolCall.function.name}"`;
     }
 
-    return tool.execute(args);
+    const result = await tool.execute(args);
+    return result;
   }
 
   async chat(
@@ -41,12 +46,12 @@ export class AgentRunner {
       return "Ollama is not available. Please start Ollama or configure an LLM provider.";
     }
 
+    const systemContent = context
+      ? `${this.systemPrompt}\n\nContext: ${context}`
+      : this.systemPrompt;
+
     const messages: ChatMessage[] = [
-      {
-        role: "system",
-        content:
-          `You are a portfolio AI assistant. Help with portfolio analysis, market questions, and signal explanations. Be very concise (max 3 sentences). Never guarantee profits. Always include risk warnings. Answer in Turkish.\n${context ? `Context: ${context}` : ""}`,
-      },
+      { role: "system", content: systemContent },
       ...(history ?? []),
       { role: "user", content: userMessage },
     ];
@@ -62,17 +67,17 @@ export class AgentRunner {
         response = await this.llm.chat(messages, tools);
       } catch {
         if (turns === 0) {
-          const res = await this.llm.chat(messages);
-          return res.content;
+          try {
+            const res = await this.llm.chat(messages);
+            return res.content;
+          } catch {
+            return "I could not reach the AI model. The model might still be loading or is too slow to respond. Please try again in a moment with a simpler question.";
+          }
         }
         break;
       }
 
       turns++;
-
-      if (!response.tool_calls || response.tool_calls.length === 0) {
-        return response.content;
-      }
 
       if (!response.tool_calls || response.tool_calls.length === 0) {
         return response.content;

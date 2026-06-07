@@ -1,8 +1,9 @@
 import { getDb } from "@portfolio-agent/db";
 import { signals } from "@portfolio-agent/db/schema";
 import { eq, desc } from "drizzle-orm";
+import type { Signal } from "./SignalService.types";
 
-export type Signal = typeof signals.$inferSelect;
+export { type Signal };
 
 export class SignalService {
   async list(): Promise<{ data: Signal[] }> {

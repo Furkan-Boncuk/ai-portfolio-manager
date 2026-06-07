@@ -3,8 +3,9 @@ import {
   getAssetById,
   createAsset,
 } from "@portfolio-agent/db/repositories/assets";
+import type { CreateAssetInput } from "./AssetService.types";
 
-export type CreateAssetInput = Parameters<typeof createAsset>[0];
+export { type CreateAssetInput };
 
 export class AssetService {
   async list() {

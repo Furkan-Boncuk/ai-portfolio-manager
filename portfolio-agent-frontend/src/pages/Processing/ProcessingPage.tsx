@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
-import { getSSEUrl } from "../lib/api";
-
-interface EventEntry {
-  id: string;
-  type: string;
-  time: string;
-  data: string;
-}
+import { getSSEUrl } from "../../lib/api";
+import type { EventEntry } from "./Processing.interface";
 
 export default function Processing() {
   const [events, setEvents] = useState<EventEntry[]>([]);

@@ -1,5 +1,8 @@
 import { z } from "zod";
 import type { Tool } from "./types";
+import type { WebSearchProvider } from "./WebSearchTool.types";
+
+export { type WebSearchProvider };
 
 export const webSearchInputSchema = z.object({
   query: z.string().min(1, "Search query is required"),
@@ -14,10 +17,6 @@ const webSearchResultSchema = z.object({
 
 export type WebSearchInput = z.infer<typeof webSearchInputSchema>;
 export type WebSearchResult = z.infer<typeof webSearchResultSchema>;
-
-export interface WebSearchProvider {
-  search(input: WebSearchInput): Promise<WebSearchResult[]>;
-}
 
 const DDG_INSTANT_API = "https://api.duckduckgo.com/";
 const DDG_HTML_API = "https://html.duckduckgo.com/html/";
@@ -137,7 +136,7 @@ export class WebSearchTool implements Tool {
       function: {
         name: "research.webSearch",
         description:
-          "Search the web for current information on a given query. Returns title, URL, and snippet for each result.",
+          "Search the web for current/real-time information. Use for: price lookups, news, market data, anything that needs up-to-date info. Provide a clear search query.",
         parameters: {
           type: "object",
           properties: {

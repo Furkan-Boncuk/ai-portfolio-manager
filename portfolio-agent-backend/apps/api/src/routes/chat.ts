@@ -1,8 +1,19 @@
 import { Elysia, t } from "elysia";
-import { AgentRunner, WebSearchTool, FetchPageTool } from "@portfolio-agent/agent-core";
+import { AgentRunner, OllamaProvider, WebSearchTool, FetchPageTool, RagIngestionTool, RagSearchTool, CryptoPriceTool } from "@portfolio-agent/agent-core";
+import { getDb } from "@portfolio-agent/db";
+import { RagRepository } from "@portfolio-agent/db/repositories/RagRepository";
 import { ChatService } from "../services/chat/ChatService";
 
-const runner = new AgentRunner([new WebSearchTool(), new FetchPageTool()]);
+const ollama = new OllamaProvider();
+const db = getDb();
+const ragRepo = new RagRepository(db);
+const runner = new AgentRunner([
+  new CryptoPriceTool(),
+  new WebSearchTool(),
+  new FetchPageTool(),
+  new RagIngestionTool((text) => ollama.embed(text), ragRepo),
+  new RagSearchTool((text) => ollama.embed(text), ragRepo),
+]);
 const chatService = new ChatService(runner);
 
 export const chatRoutes = new Elysia({ prefix: "/chat" })

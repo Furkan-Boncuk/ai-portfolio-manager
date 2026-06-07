@@ -1,21 +1,6 @@
 import { useEffect, useState } from "react";
-import { apiFetch } from "../lib/api";
-
-interface Signal {
-  id: string;
-  signalType: string;
-  direction: string;
-  timeframe: string;
-  entryLow: string;
-  entryHigh: string;
-  invalidationPrice: string;
-  takeProfit1: string;
-  riskLevel: string;
-  confidence: number;
-  reasonSummary: string;
-  createdAt: string;
-  disclaimer: string;
-}
+import { apiFetch } from "../../lib/api";
+import type { Signal } from "./Signals.interface";
 
 export default function Signals() {
   const [signals, setSignals] = useState<Signal[]>([]);

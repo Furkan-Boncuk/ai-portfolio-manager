@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { initAuth } from "./lib/api";
-import Portfolio from "./pages/Portfolio";
-import Signals from "./pages/Signals";
-import Chat from "./pages/Chat";
-import Processing from "./pages/Processing";
+import PortfolioPage from "./pages/Portfolio/PortfolioPage";
+import SignalsPage from "./pages/Signals/SignalsPage";
+import ChatPage from "./pages/Chat/ChatPage";
+import ProcessingPage from "./pages/Processing/ProcessingPage";
 import DecisionsPage from "./pages/Decisions/DecisionsPage";
 import PositionsPage from "./pages/Positions/PositionsPage";
 import KnowledgePage from "./pages/Knowledge/KnowledgePage";
@@ -24,16 +24,16 @@ function App() {
         <Navbar />
         <main className="p-6">
           <Routes>
-            <Route path="/" element={<Portfolio />} />
-            <Route path="/processing" element={<Processing />} />
+            <Route path="/" element={<PortfolioPage />} />
+            <Route path="/processing" element={<ProcessingPage />} />
             <Route path="/decisions" element={<DecisionsPage />} />
             <Route path="/knowledge" element={<KnowledgePage />} />
             <Route path="/agents" element={<AgentsPage />} />
             <Route path="/tools" element={<ToolsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/signals" element={<Signals />} />
+            <Route path="/signals" element={<SignalsPage />} />
             <Route path="/positions" element={<PositionsPage />} />
-            <Route path="/chat" element={<Chat />} />
+            <Route path="/chat" element={<ChatPage />} />
           </Routes>
         </main>
       </div>

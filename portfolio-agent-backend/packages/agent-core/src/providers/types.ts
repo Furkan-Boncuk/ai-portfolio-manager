@@ -36,4 +36,5 @@ export interface LLMProvider {
   readonly name: string;
   chat(messages: ChatMessage[], tools?: ToolDefinition[]): Promise<ChatResponse>;
   isAvailable(): Promise<boolean>;
+  embed(text: string): Promise<number[]>;
 }

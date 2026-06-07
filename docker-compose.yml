@@ -28,8 +28,8 @@ services:
       LOCAL_AUTH_TOKEN: ${LOCAL_AUTH_TOKEN:-dev-local-token-change-me}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/api}
-      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:8b}
-      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5:1.5b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma:300m-bf16}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       BINANCE_PUBLIC_BASE_URL: ${BINANCE_PUBLIC_BASE_URL:-https://api.binance.com}

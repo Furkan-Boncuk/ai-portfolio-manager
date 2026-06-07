@@ -1,23 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { apiFetch } from "../lib/api";
-
-interface Session {
-  id: string;
-  title: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  messageCount: number;
-  lastMessage: string | null;
-}
-
-interface Message {
-  id: string;
-  sessionId: string;
-  role: string;
-  content: string;
-  createdAt: string;
-}
+import { apiFetch } from "../../lib/api";
+import type { Session, Message } from "./Chat.interface";
 
 function PlusIcon() {
   return (

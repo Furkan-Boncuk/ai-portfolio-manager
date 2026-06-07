@@ -3,8 +3,9 @@ import {
   getPortfolioById,
   createPortfolio,
 } from "@portfolio-agent/db/repositories/portfolios";
+import type { CreatePortfolioInput } from "./PortfolioService.types";
 
-export type CreatePortfolioInput = Parameters<typeof createPortfolio>[0];
+export { type CreatePortfolioInput };
 
 export class PortfolioService {
   async list() {

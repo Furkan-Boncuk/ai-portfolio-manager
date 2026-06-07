@@ -1,20 +1,6 @@
 import { useEffect, useState } from "react";
-import { apiFetch } from "../lib/api";
-
-interface Asset {
-  id: string;
-  symbol: string;
-  name: string;
-  assetType: string;
-  exchange: string;
-}
-
-interface Portfolio {
-  id: string;
-  name: string;
-  baseCurrency: string;
-  isActive: boolean;
-}
+import { apiFetch } from "../../lib/api";
+import type { Asset, Portfolio } from "./Portfolio.interface";
 
 export default function Portfolio() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);

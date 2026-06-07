@@ -1,9 +1,6 @@
-export interface CandleData {
-  close: number;
-  high: number;
-  low: number;
-  volume: number;
-}
+import type { CandleData } from "./indicators.types";
+
+export { type CandleData };
 
 export function calcEMA(data: number[], period: number): number[] {
   if (data.length < period) return new Array(data.length).fill(0);

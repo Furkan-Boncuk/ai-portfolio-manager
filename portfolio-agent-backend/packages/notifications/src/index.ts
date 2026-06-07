@@ -1,2 +1,2 @@
-export { TelegramProvider } from "./providers/telegram";
-export type { TelegramMessage } from "./providers/telegram";
+export { TelegramProvider } from "./providers/TelegramProvider";
+export type { TelegramMessage } from "./providers/TelegramProvider";

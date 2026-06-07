@@ -1,10 +1,7 @@
 import { getEnv } from "@portfolio-agent/shared";
+import type { TelegramMessage } from "./TelegramProvider.types";
 
-export interface TelegramMessage {
-  chatId: string;
-  text: string;
-  parseMode?: "HTML" | "Markdown";
-}
+export { type TelegramMessage };
 
 export class TelegramProvider {
   private botToken: string;
