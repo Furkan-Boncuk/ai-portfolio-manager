@@ -12,6 +12,13 @@ export interface ChatResponse {
   content: string;
   model: string;
   tool_calls?: ToolCall[];
+  reasoning?: string;
+}
+
+export interface StreamChunk {
+  content: string;
+  reasoning?: string;
+  done: boolean;
 }
 
 export interface ToolDefinition {

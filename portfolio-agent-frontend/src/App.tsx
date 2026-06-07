@@ -34,6 +34,7 @@ function App() {
             <Route path="/signals" element={<SignalsPage />} />
             <Route path="/positions" element={<PositionsPage />} />
             <Route path="/chat" element={<ChatPage />} />
+            <Route path="/chat/:sessionId" element={<ChatPage />} />
           </Routes>
         </main>
       </div>

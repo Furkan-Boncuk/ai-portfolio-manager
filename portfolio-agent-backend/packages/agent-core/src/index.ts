@@ -1,4 +1,4 @@
-export type { LLMProvider, ChatMessage, ChatResponse, ToolDefinition, ToolCall, ChatOptions } from "./providers/types";
+export type { LLMProvider, ChatMessage, ChatResponse, ToolDefinition, ToolCall, ChatOptions, StreamChunk } from "./providers/types";
 export { ModelRoute } from "./providers/types";
 export { OllamaProvider } from "./providers/OllamaProvider";
 export type { OllamaModelConfig } from "./providers/OllamaProvider";

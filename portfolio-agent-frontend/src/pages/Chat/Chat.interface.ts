@@ -14,4 +14,12 @@ export interface Message {
   role: string;
   content: string;
   createdAt: string;
+  reasoning?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface StreamMessage {
+  reasoning?: string;
+  content?: string;
+  messageId?: string;
 }

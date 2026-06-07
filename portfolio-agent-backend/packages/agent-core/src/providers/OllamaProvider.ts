@@ -1,5 +1,5 @@
 import { getEnv, LLMError } from "@portfolio-agent/shared";
-import type { LLMProvider, ChatMessage, ChatResponse, ToolDefinition, ToolCall, ChatOptions } from "./types";
+import type { LLMProvider, ChatMessage, ChatResponse, ToolDefinition, ToolCall, ChatOptions, StreamChunk } from "./types";
 import { ModelRoute } from "./types";
 
 export interface OllamaModelConfig {
@@ -49,13 +49,100 @@ export class OllamaProvider implements LLMProvider {
     return this.chatWithModel(model, messages, tools);
   }
 
-  private async chatWithModel(
+  async chatStream(
+    messages: ChatMessage[],
+    tools?: ToolDefinition[],
+    options?: ChatOptions,
+  ): Promise<ReadableStream<StreamChunk>> {
+    const model = options?.model === ModelRoute.Thinking
+      ? this.thinkingModel
+      : this.fastModel;
+
+    const url = `${this.baseUrl}/chat`;
+    const body = this.buildRequestBody(model, messages, tools, true);
+
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), this.chatTimeout);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: abortController.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      throw new LLMError(`Ollama API error: ${response.statusText}`, {
+        status: response.status,
+      });
+    }
+
+    const ollamaBody = response.body;
+    if (!ollamaBody) {
+      throw new LLMError("Ollama returned empty stream body");
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    return new ReadableStream<StreamChunk>({
+      async pull(controller) {
+        const reader = ollamaBody.getReader();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+
+              try {
+                const parsed = JSON.parse(trimmed) as {
+                  message?: { content?: string; reasoning_content?: string; thinking?: string };
+                  done: boolean;
+                };
+
+                controller.enqueue({
+                  content: parsed.message?.content ?? "",
+                  reasoning: parsed.message?.thinking ?? parsed.message?.reasoning_content,
+                  done: parsed.done,
+                });
+
+                if (parsed.done) {
+                  controller.close();
+                  return;
+                }
+              } catch {
+                // skip malformed lines
+              }
+            }
+          }
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        } finally {
+          reader.releaseLock();
+        }
+      },
+    });
+  }
+
+  private buildRequestBody(
     model: string,
     messages: ChatMessage[],
     tools?: ToolDefinition[],
-  ): Promise<ChatResponse> {
-    const url = `${this.baseUrl}/chat`;
-
+    stream?: boolean,
+  ): Record<string, unknown> {
     const body: Record<string, unknown> = {
       model,
       messages: messages.map((m) => {
@@ -86,17 +173,28 @@ export class OllamaProvider implements LLMProvider {
         if (m.name) msg.name = m.name;
         return msg;
       }),
-      stream: false,
+      stream: stream ?? false,
       options: {
-        temperature: 0.0,
-        top_p: 0.5,
-        num_predict: 1000,
+        temperature: stream ? 0.1 : 0.0,
+        top_p: 0.9,
+        num_predict: stream ? 8192 : 2048,
       },
     };
 
     if (tools && tools.length > 0) {
       body.tools = tools;
     }
+
+    return body;
+  }
+
+  private async chatWithModel(
+    model: string,
+    messages: ChatMessage[],
+    tools?: ToolDefinition[],
+  ): Promise<ChatResponse> {
+    const url = `${this.baseUrl}/chat`;
+    const body = this.buildRequestBody(model, messages, tools, false);
 
     const response = await fetch(url, {
       method: "POST",
@@ -115,6 +213,8 @@ export class OllamaProvider implements LLMProvider {
       message: {
         role: string;
         content: string;
+        reasoning_content?: string;
+        thinking?: string;
         tool_calls?: Array<{
           id?: string;
           type?: string;
@@ -142,6 +242,7 @@ export class OllamaProvider implements LLMProvider {
       content: data.message.content,
       model: data.model,
       tool_calls,
+      reasoning: data.message.thinking ?? data.message.reasoning_content,
     };
   }
 

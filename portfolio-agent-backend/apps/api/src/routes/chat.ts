@@ -54,9 +54,12 @@ export const chatRoutes = new Elysia({ prefix: "/chat" })
     "/sessions",
     async ({ body }) => {
       const chat = await chatServiceFactory.getRunner();
-      return chat.createSession(body.message);
+      if (body.message) {
+        return chat.createSession(body.message);
+      }
+      return chat.createEmptySession();
     },
-    { body: t.Object({ message: t.String() }) },
+    { body: t.Object({ message: t.Optional(t.String()) }) },
   )
   .get("/sessions/:id", async ({ params }) => {
     const chat = await chatServiceFactory.getRunner();
@@ -73,6 +76,17 @@ export const chatRoutes = new Elysia({ prefix: "/chat" })
       return chat.chatInSession(params.id, body.message);
     },
     { body: t.Object({ message: t.String() }) },
+  )
+  .get(
+    "/sessions/:id/stream",
+    async ({ params, query, set }) => {
+      const chat = await chatServiceFactory.getRunner();
+      set.headers["content-type"] = "text/event-stream";
+      set.headers["cache-control"] = "no-cache";
+      set.headers["connection"] = "keep-alive";
+      return chat.chatInSessionStream(params.id, query.message);
+    },
+    { query: t.Object({ message: t.String() }) },
   )
   .patch(
     "/sessions/:id",

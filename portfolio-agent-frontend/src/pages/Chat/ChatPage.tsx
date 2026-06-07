@@ -1,83 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
 import type { Session, Message } from "./Chat.interface";
-
-function PlusIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <line x1="8" y1="2" x2="8" y2="14" />
-      <line x1="2" y1="8" x2="14" y2="8" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M2 4h12M5 4V2.5a1 1 0 011-1h4a1 1 0 011 1V4M12 4v9a1 1 0 01-1 1H5a1 1 0 01-1-1V4" />
-    </svg>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M11 2l3 3-9 9H2v-3z" />
-    </svg>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
-    </svg>
-  );
-}
-
-function BotIcon() {
-  return (
-    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-      AI
-    </div>
-  );
-}
-
-function UserIcon() {
-  return (
-    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-      U
-    </div>
-  );
-}
-
-function ChatIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-    </svg>
-  );
-}
-
-function Spinner() {
-  return (
-    <div className="flex items-center gap-2 text-sm text-gray-400">
-      <div className="flex gap-1">
-        <div className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "0ms" }} />
-        <div className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "150ms" }} />
-        <div className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: "300ms" }} />
-      </div>
-    </div>
-  );
-}
+import { PlusIcon } from "../../components/Icons/PlusIcon/PlusIcon";
+import { TrashIcon } from "../../components/Icons/TrashIcon/TrashIcon";
+import { EditIcon } from "../../components/Icons/EditIcon/EditIcon";
+import { SendIcon } from "../../components/Icons/SendIcon/SendIcon";
+import { BotIcon } from "../../components/Icons/BotIcon/BotIcon";
+import { UserIcon } from "../../components/Icons/UserIcon/UserIcon";
+import { ChatIcon } from "../../components/Icons/ChatIcon/ChatIcon";
+import { Spinner } from "../../components/atoms/Spinner/Spinner";
+import { ThinkingBlock } from "../../components/molecules/Chat/ThinkingBlock/ThinkingBlock";
 
 export default function Chat() {
+  const { sessionId } = useParams<{ sessionId?: string }>();
+  const navigate = useNavigate();
+
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streamActive, setStreamActive] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -87,6 +30,8 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const pendingSessionRef = useRef<string | null>(null);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -97,12 +42,18 @@ export default function Chat() {
     }
   }, []);
 
-  const loadSession = useCallback(async (sessionId: string) => {
+  const loadSession = useCallback(async (sid: string) => {
     try {
       const res = await apiFetch<{ data: Message[] }>(
-        `/api/v1/chat/sessions/${sessionId}/messages`
+        `/api/v1/chat/sessions/${sid}/messages`
       );
-      setMessages(res.data);
+      const msgs = res.data.map((m) => ({
+        ...m,
+        reasoning: m.metadata && typeof m.metadata === "object" && "reasoning" in m.metadata
+          ? (m.metadata as Record<string, unknown>).reasoning as string
+          : undefined,
+      }));
+      setMessages(msgs);
     } catch (e) {
       console.error("Failed to load messages", e);
     }
@@ -113,14 +64,30 @@ export default function Chat() {
   }, [loadSessions]);
 
   useEffect(() => {
-    if (activeSessionId) {
-      loadSession(activeSessionId);
+    if (sessionId) {
+      if (pendingSessionRef.current === sessionId) {
+        pendingSessionRef.current = null;
+        return;
+      }
+      loadSession(sessionId);
+    } else {
+      setMessages([]);
     }
-  }, [activeSessionId, loadSession]);
+  }, [sessionId, loadSession]);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+  }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    scrollToBottom(true);
+  }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    if (streamActive) {
+      scrollToBottom(false);
+    }
+  }, [messages, streamActive, scrollToBottom]);
 
   useEffect(() => {
     if (editingSessionId) {
@@ -129,17 +96,98 @@ export default function Chat() {
     }
   }, [editingSessionId]);
 
-  const createNewSession = useCallback(async () => {
-    setActiveSessionId(null);
-    setMessages([]);
-    setInput("");
-    inputRef.current?.focus();
+  useEffect(() => {
+    return () => {
+      eventSourceRef.current?.close();
+    };
   }, []);
 
-  const selectSession = useCallback((sessionId: string) => {
-    setActiveSessionId(sessionId);
-    setMessages([]);
-  }, []);
+  const createNewSession = useCallback(() => {
+    eventSourceRef.current?.close();
+    navigate("/chat");
+  }, [navigate]);
+
+  const selectSession = useCallback((sid: string) => {
+    eventSourceRef.current?.close();
+    navigate(`/chat/${sid}`);
+  }, [navigate]);
+
+  const startStream = useCallback(
+    (sid: string, message: string) => {
+      eventSourceRef.current?.close();
+
+      const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+      const encoded = encodeURIComponent(message);
+      const url = `${baseUrl}/api/v1/chat/sessions/${sid}/stream?message=${encoded}`;
+
+      const eventSource = new EventSource(url, { withCredentials: true });
+      eventSourceRef.current = eventSource;
+
+      let streamContent = "";
+      let streamReasoning = "";
+
+      const assistantId = crypto.randomUUID();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantId,
+          sessionId: sid,
+          role: "assistant",
+          content: "",
+          reasoning: "",
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+
+      eventSource.addEventListener("started", () => {
+        setStreamActive(true);
+      });
+
+      eventSource.addEventListener("reasoning", (e: MessageEvent) => {
+        const data = JSON.parse(e.data) as { content: string };
+        streamReasoning += data.content;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, reasoning: streamReasoning } : m,
+          ),
+        );
+      });
+
+      eventSource.addEventListener("content", (e: MessageEvent) => {
+        const data = JSON.parse(e.data) as { delta: string };
+        streamContent += data.delta;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: streamContent } : m,
+          ),
+        );
+      });
+
+      eventSource.addEventListener("done", () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+        setStreamActive(false);
+        setLoading(false);
+        loadSessions();
+      });
+
+      eventSource.addEventListener("error", () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+        setStreamActive(false);
+        setLoading(false);
+      });
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+        setStreamActive(false);
+        setLoading(false);
+      };
+    },
+    [loadSessions],
+  );
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || loading) return;
@@ -151,7 +199,7 @@ export default function Chat() {
       ...prev,
       {
         id: crypto.randomUUID(),
-        sessionId: activeSessionId ?? "",
+        sessionId: sessionId ?? "",
         role: "user",
         content: userContent,
         createdAt: new Date().toISOString(),
@@ -160,51 +208,19 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      if (!activeSessionId) {
-        const res = await apiFetch<{
-          data: { sessionId: string; response: string };
-        }>("/api/v1/chat/sessions", {
-          method: "POST",
-          body: JSON.stringify({ message: userContent }),
-        });
+      if (!sessionId) {
+        const res = await apiFetch<{ data: { session: Session } }>(
+          "/api/v1/chat/sessions",
+          { method: "POST",           body: JSON.stringify({}) },
+        );
 
-        setActiveSessionId(res.data.sessionId);
-        setMessages([
-          {
-            id: crypto.randomUUID(),
-            sessionId: res.data.sessionId,
-            role: "user",
-            content: userContent,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: crypto.randomUUID(),
-            sessionId: res.data.sessionId,
-            role: "assistant",
-            content: res.data.response,
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-        await loadSessions();
+        const newSessionId = res.data.session.id;
+        pendingSessionRef.current = newSessionId;
+        loadSessions();
+        navigate(`/chat/${newSessionId}`, { replace: true });
+        startStream(newSessionId, userContent);
       } else {
-        const res = await apiFetch<{
-          data: { response: string; message: Message };
-        }>(`/api/v1/chat/sessions/${activeSessionId}/messages`, {
-          method: "POST",
-          body: JSON.stringify({ message: userContent }),
-        });
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: res.data.message.id,
-            sessionId: activeSessionId,
-            role: "assistant",
-            content: res.data.response,
-            createdAt: res.data.message.createdAt,
-          },
-        ]);
-        await loadSessions();
+        startStream(sessionId, userContent);
       }
     } catch (e) {
       console.error("Chat error", e);
@@ -212,27 +228,24 @@ export default function Chat() {
         ...prev,
         {
           id: crypto.randomUUID(),
-          sessionId: activeSessionId ?? "",
+          sessionId: sessionId ?? "",
           role: "assistant",
           content: "Error: Unable to reach agent.",
           createdAt: new Date().toISOString(),
         },
       ]);
-    } finally {
       setLoading(false);
-      inputRef.current?.focus();
     }
-  }, [input, loading, activeSessionId, loadSessions]);
+  }, [input, loading, sessionId, navigate, startStream]);
 
   const handleDeleteSession = useCallback(
-    async (sessionId: string) => {
+    async (sid: string) => {
       try {
-        await apiFetch(`/api/v1/chat/sessions/${sessionId}`, {
+        await apiFetch(`/api/v1/chat/sessions/${sid}`, {
           method: "DELETE",
         });
-        if (activeSessionId === sessionId) {
-          setActiveSessionId(null);
-          setMessages([]);
+        if (sessionId === sid) {
+          navigate("/chat", { replace: true });
         }
         await loadSessions();
       } catch (e) {
@@ -240,17 +253,17 @@ export default function Chat() {
       }
       setDeleteConfirmId(null);
     },
-    [activeSessionId, loadSessions]
+    [sessionId, navigate, loadSessions]
   );
 
   const handleRenameSession = useCallback(
-    async (sessionId: string) => {
+    async (sid: string) => {
       if (!editTitle.trim()) {
         setEditingSessionId(null);
         return;
       }
       try {
-        await apiFetch(`/api/v1/chat/sessions/${sessionId}`, {
+        await apiFetch(`/api/v1/chat/sessions/${sid}`, {
           method: "PATCH",
           body: JSON.stringify({ title: editTitle.trim() }),
         });
@@ -263,20 +276,9 @@ export default function Chat() {
     [editTitle, loadSessions]
   );
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    if (diff < 86400000) {
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    }
-    if (diff < 604800000) {
-      return d.toLocaleDateString([], { weekday: "short" });
-    }
-    return d.toLocaleDateString([], { day: "numeric", month: "short" });
-  };
+  const showSpinner = loading && !streamActive;
 
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const activeSession = sessions.find((s) => s.id === sessionId);
 
   return (
     <div className="flex -m-6 h-[calc(100vh-57px)]">
@@ -342,10 +344,10 @@ export default function Chat() {
                       </button>
                     </div>
                   ) : (
-                    <button
+                    <div
                       onClick={() => selectSession(session.id)}
-                      className={`w-full flex items-start gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-colors ${
-                        activeSessionId === session.id
+                      className={`flex items-start gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-colors cursor-pointer ${
+                        sessionId === session.id
                           ? "bg-gray-800 text-white"
                           : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/50"
                       }`}
@@ -356,7 +358,9 @@ export default function Chat() {
                           {session.title}
                         </div>
                       </div>
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -377,7 +381,7 @@ export default function Chat() {
                           <TrashIcon />
                         </button>
                       </div>
-                    </button>
+                    </div>
                   )}
                 </div>
               ))
@@ -407,7 +411,7 @@ export default function Chat() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto w-full">
-            {!activeSessionId && messages.length === 0 && !loading ? (
+            {!sessionId && messages.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-full min-h-[60vh] px-6">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-teal-600/20 border border-emerald-500/20 flex items-center justify-center mb-5">
                   <BotIcon />
@@ -452,13 +456,19 @@ export default function Chat() {
                   >
                     {msg.role === "assistant" ? <BotIcon /> : <UserIcon />}
                     <div className="flex-1 min-w-0 pt-1">
+                      {msg.role === "assistant" && msg.reasoning && (
+                        <ThinkingBlock
+                          reasoning={msg.reasoning}
+                          streaming={streamActive && i === messages.length - 1}
+                        />
+                      )}
                       <div className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
                         {msg.content}
                       </div>
                     </div>
                   </div>
                 ))}
-                {loading && (
+                {showSpinner && (
                   <div className="flex gap-3 px-4 py-3 rounded-xl bg-gray-800/30">
                     <BotIcon />
                     <div className="pt-1">

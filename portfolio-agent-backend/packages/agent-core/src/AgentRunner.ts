@@ -1,6 +1,6 @@
 import { OllamaProvider } from "./providers/OllamaProvider";
 import type { OllamaModelConfig } from "./providers/OllamaProvider";
-import type { ChatMessage, ToolCall } from "./providers/types";
+import type { ChatMessage, ToolCall, StreamChunk } from "./providers/types";
 import { ModelRoute } from "./providers/types";
 import type { Tool } from "./tools/types";
 
@@ -174,6 +174,145 @@ export class AgentRunner {
       return response.content;
     } catch {
       return this.chat(userMessage, history, context);
+    }
+  }
+
+  async chatStream(
+    userMessage: string,
+    history?: ChatMessage[],
+    context?: string,
+  ): Promise<ReadableStream<StreamChunk>> {
+    const available = await this.llm.isAvailable();
+    if (!available) {
+      return new ReadableStream<StreamChunk>({
+        start(controller) {
+          controller.enqueue({
+            content: "Ollama is not available.",
+            done: true,
+          });
+          controller.close();
+        },
+      });
+    }
+
+    const systemContent = context
+      ? `${this.systemPrompt}\n\nContext: ${context}`
+      : this.systemPrompt;
+
+    const messages: ChatMessage[] = [
+      { role: "system", content: systemContent },
+      ...(history ?? []),
+      { role: "user", content: userMessage },
+    ];
+
+    const tools = this.toolDefinitions;
+    let turns = 0;
+    const MAX_TOOL_TURNS = 5;
+
+    while (turns < MAX_TOOL_TURNS) {
+      let response: Awaited<ReturnType<typeof this.llm.chat>>;
+
+      try {
+        response = await this.llm.chat(messages, tools);
+      } catch {
+        if (turns === 0) {
+          try {
+            const res = await this.llm.chat(messages);
+            return new ReadableStream<StreamChunk>({
+              start(controller) {
+                if (res.reasoning) {
+                  controller.enqueue({ content: "", reasoning: res.reasoning, done: false });
+                }
+                controller.enqueue({ content: res.content, done: true });
+                controller.close();
+              },
+            });
+          } catch {
+            return new ReadableStream<StreamChunk>({
+              start(controller) {
+                controller.enqueue({
+                  content: "I could not reach the AI model.",
+                  done: true,
+                });
+                controller.close();
+              },
+            });
+          }
+        }
+        break;
+      }
+
+      turns++;
+
+      if (!response.tool_calls || response.tool_calls.length === 0) {
+        try {
+          const stream = await this.llm.chatStream(messages, undefined, { model: ModelRoute.Thinking });
+          return stream;
+        } catch {
+          try {
+            const res = await this.llm.chat(messages, undefined, { model: ModelRoute.Thinking });
+            return new ReadableStream<StreamChunk>({
+              start(controller) {
+                if (res.reasoning) {
+                  controller.enqueue({ content: "", reasoning: res.reasoning, done: false });
+                }
+                controller.enqueue({ content: res.content, done: true });
+                controller.close();
+              },
+            });
+          } catch {
+            return new ReadableStream<StreamChunk>({
+              start(controller) {
+                controller.enqueue({
+                  content: "Failed to generate response.",
+                  done: true,
+                });
+                controller.close();
+              },
+            });
+          }
+        }
+      }
+
+      messages.push({
+        role: "assistant",
+        content: response.content || "",
+        tool_calls: response.tool_calls,
+      });
+
+      for (const toolCall of response.tool_calls) {
+        const result = await this.executeTool(toolCall);
+        messages.push({
+          role: "tool",
+          content: result,
+          tool_call_id: toolCall.id,
+          name: toolCall.function.name,
+        });
+      }
+    }
+
+    try {
+      return await this.llm.chatStream(messages, tools, { model: ModelRoute.Thinking });
+    } catch {
+      try {
+        const res = await this.llm.chat(messages, tools, { model: ModelRoute.Thinking });
+        return new ReadableStream<StreamChunk>({
+          start(controller) {
+            if (res.reasoning) {
+              controller.enqueue({ content: "", reasoning: res.reasoning, done: false });
+            }
+            controller.enqueue({ content: res.content, done: true });
+            controller.close();
+          },
+        });
+      } catch {
+        return new ReadableStream<StreamChunk>({
+          start(controller) {
+            controller.enqueue({ content: "Failed to get final response.", done: true });
+            controller.close();
+          },
+        });
+      }
     }
   }
 
