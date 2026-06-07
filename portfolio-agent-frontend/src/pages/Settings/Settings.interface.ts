@@ -1,8 +1,12 @@
-export interface UserPreferences {
-  theme: "dark" | "light";
-  defaultAsset: string;
-  riskProfile: "conservative" | "moderate" | "aggressive";
-  notificationsEnabled: boolean;
+export interface ModelPreferences {
+  fastModel: string;
+  thinkingModel: string;
+}
+
+export interface OllamaModelTag {
+  name: string;
+  size: number;
+  modifiedAt: string;
 }
 
 export interface SystemConfig {
@@ -13,6 +17,7 @@ export interface SystemConfig {
 }
 
 export interface SettingsData {
-  preferences: UserPreferences;
+  preferences: ModelPreferences;
   system: SystemConfig;
+  availableModels: OllamaModelTag[];
 }

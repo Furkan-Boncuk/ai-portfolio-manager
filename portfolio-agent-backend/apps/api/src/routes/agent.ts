@@ -1,31 +1,73 @@
 import { Elysia, t } from "elysia";
-import { AgentRunner, OllamaProvider, WebSearchTool, FetchPageTool, RagIngestionTool, RagSearchTool, CryptoPriceTool } from "@portfolio-agent/agent-core";
+import { OllamaProvider, AgentRunner, WebSearchTool, FetchPageTool, RagIngestionTool, RagSearchTool, CryptoPriceTool } from "@portfolio-agent/agent-core";
+import type { OllamaModelConfig } from "@portfolio-agent/agent-core";
 import { getDb } from "@portfolio-agent/db";
 import { RagRepository } from "@portfolio-agent/db/repositories/RagRepository";
+import { getEnv } from "@portfolio-agent/shared";
 import { AgentService } from "../services/agent/AgentService";
+import { SettingsService } from "../services/settings/SettingsService";
 
-const ollama = new OllamaProvider();
-const db = getDb();
-const ragRepo = new RagRepository(db);
-const runner = new AgentRunner([
-  new CryptoPriceTool(),
-  new WebSearchTool(),
-  new FetchPageTool(),
-  new RagIngestionTool((text) => ollama.embed(text), ragRepo),
-  new RagSearchTool((text) => ollama.embed(text), ragRepo),
-]);
-const agentService = new AgentService(runner);
+function createRunner(modelConfig?: OllamaModelConfig) {
+  const db = getDb();
+  const ragRepo = new RagRepository(db);
+  const ollama = new OllamaProvider(modelConfig);
+  const embedFn = (text: string) => ollama.embed(text);
+
+  return new AgentRunner(
+    [
+      new CryptoPriceTool(),
+      new WebSearchTool(),
+      new FetchPageTool(),
+      new RagIngestionTool(embedFn, ragRepo),
+      new RagSearchTool(embedFn, ragRepo),
+    ],
+    undefined,
+    modelConfig,
+  );
+}
+
+function createAgentService() {
+  const userId = getEnv().DEFAULT_USER_ID;
+  const db = getDb();
+  const settingsService = new SettingsService(db);
+
+  return {
+    async getService() {
+      const prefs = await settingsService.getModelPreferences(userId);
+      const runner = createRunner({
+        fastModel: prefs.fastModel,
+        thinkingModel: prefs.thinkingModel,
+      });
+      return new AgentService(runner);
+    },
+  };
+}
+
+const agentServiceFactory = createAgentService();
 
 export const agentRoutes = new Elysia({ prefix: "/agent" })
-  .post("/chat", ({ body }) => agentService.chat(body.message, body.context), {
-    body: t.Object({
-      message: t.String(),
-      context: t.Optional(t.String()),
-    }),
-  })
+  .post(
+    "/chat",
+    async ({ body }) => {
+      const service = await agentServiceFactory.getService();
+      return service.chat(body.message, body.context);
+    },
+    { body: t.Object({ message: t.String(), context: t.Optional(t.String()) }) },
+  )
+  .post(
+    "/research",
+    async ({ body }) => {
+      const service = await agentServiceFactory.getService();
+      return service.chat(body.message, body.context);
+    },
+    { body: t.Object({ message: t.String(), context: t.Optional(t.String()) }) },
+  )
   .post(
     "/review-signal",
-    ({ body }) => agentService.reviewSignal(body),
+    async ({ body }) => {
+      const service = await agentServiceFactory.getService();
+      return service.reviewSignal(body);
+    },
     {
       body: t.Object({
         asset: t.String(),
@@ -40,7 +82,4 @@ export const agentRoutes = new Elysia({ prefix: "/agent" })
         reasonSummary: t.String(),
       }),
     },
-  )
-  .post("/review-portfolio", () => ({ message: "Not implemented", status: 501 }))
-  .get("/runs", () => ({ message: "Not implemented", status: 501 }))
-  .get("/runs/:id", () => ({ message: "Not implemented", status: 501 }));
+  );

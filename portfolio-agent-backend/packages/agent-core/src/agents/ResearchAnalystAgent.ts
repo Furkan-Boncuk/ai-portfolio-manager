@@ -1,5 +1,6 @@
 import { AgentRunner } from "../AgentRunner";
 import { OllamaProvider } from "../providers/OllamaProvider";
+import type { OllamaModelConfig } from "../providers/OllamaProvider";
 import { WebSearchTool } from "../tools/WebSearchTool";
 import { FetchPageTool } from "../tools/FetchPageTool";
 import { RagIngestionTool } from "../tools/RagIngestionTool";
@@ -9,12 +10,14 @@ import type { RagRepository } from "@portfolio-agent/db/repositories/RagReposito
 
 export class ResearchAnalystAgent {
   private runner: AgentRunner;
+  private ollama: OllamaProvider;
 
   constructor(
     private ragRepo: RagRepository,
+    modelConfig?: OllamaModelConfig,
   ) {
-    const ollama = new OllamaProvider();
-    const embedFn = (text: string) => ollama.embed(text);
+    this.ollama = new OllamaProvider(modelConfig);
+    const embedFn = (text: string) => this.ollama.embed(text);
 
     this.runner = new AgentRunner(
       [
@@ -38,11 +41,12 @@ Available tools:
 - research.fetchReadablePage: Fetch and read web page content
 - rag.ingest: Save page content to the permanent knowledge base
 - rag.search: Search previously saved knowledge`,
+      modelConfig,
     );
   }
 
   async research(query: string): Promise<{ response: string; ingested: boolean }> {
-    const response = await this.runner.chat(
+    const response = await this.runner.think(
       `Research the following topic thoroughly. Use web search, fetch relevant pages, and save important findings to the knowledge base:\n\n${query}`,
     );
 
@@ -50,6 +54,6 @@ Available tools:
   }
 
   async ask(query: string): Promise<string> {
-    return this.runner.chat(query);
+    return this.runner.think(query);
   }
 }

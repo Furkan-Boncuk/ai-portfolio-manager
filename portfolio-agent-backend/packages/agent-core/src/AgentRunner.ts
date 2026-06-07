@@ -1,5 +1,7 @@
 import { OllamaProvider } from "./providers/OllamaProvider";
+import type { OllamaModelConfig } from "./providers/OllamaProvider";
 import type { ChatMessage, ToolCall } from "./providers/types";
+import { ModelRoute } from "./providers/types";
 import type { Tool } from "./tools/types";
 
 const DEFAULT_SYSTEM_PROMPT = "You are a portfolio AI assistant with tools. For price queries (BTC, ETH, etc.), use market.cryptoPrice — it gives accurate real-time data from Binance. For news or general info, use research.webSearch. Actually call the tool, do not just say you will. Answer in Turkish. Be concise.";
@@ -9,8 +11,8 @@ export class AgentRunner {
   private tools: Tool[];
   private systemPrompt: string;
 
-  constructor(tools?: Tool[], systemPrompt?: string) {
-    this.llm = new OllamaProvider();
+  constructor(tools?: Tool[], systemPrompt?: string, modelConfig?: OllamaModelConfig) {
+    this.llm = new OllamaProvider(modelConfig);
     this.tools = tools ?? [];
     this.systemPrompt = systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
   }
@@ -140,10 +142,38 @@ export class AgentRunner {
     ];
 
     try {
-      const response = await this.llm.chat(messages);
+      const response = await this.llm.chat(messages, undefined, { model: ModelRoute.Thinking });
       return response.content;
     } catch {
       return this.deterministicReview(signal);
+    }
+  }
+
+  async think(
+    userMessage: string,
+    history?: ChatMessage[],
+    context?: string,
+  ): Promise<string> {
+    const available = await this.llm.isAvailable();
+    if (!available) {
+      return "Ollama is not available.";
+    }
+
+    const systemContent = context
+      ? `${this.systemPrompt}\n\nContext: ${context}`
+      : this.systemPrompt;
+
+    const messages: ChatMessage[] = [
+      { role: "system", content: systemContent },
+      ...(history ?? []),
+      { role: "user", content: userMessage },
+    ];
+
+    try {
+      const response = await this.llm.chat(messages, undefined, { model: ModelRoute.Thinking });
+      return response.content;
+    } catch {
+      return this.chat(userMessage, history, context);
     }
   }
 

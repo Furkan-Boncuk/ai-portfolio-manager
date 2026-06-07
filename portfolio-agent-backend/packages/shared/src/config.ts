@@ -9,9 +9,8 @@ export const envSchema = z.object({
   LOCAL_AUTH_TOKEN: z.string().min(1),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   OLLAMA_BASE_URL: z.string().default("http://localhost:11434/api"),
-  OLLAMA_CHAT_MODEL: z.string().default("qwen2.5:1.5b"),
-  // OLLAMA_CHAT_MODEL: z.string().default("qwen3:8b"),
-  // qwen2.5-1.5b-grpo-tool-calling
+  OLLAMA_FAST_MODEL: z.string().default("qwen2.5:1.5b"),
+  OLLAMA_THINKING_MODEL: z.string().default("qwen3:8b"),
   OLLAMA_EMBEDDING_MODEL: z.string().default("embeddinggemma"),
   TELEGRAM_BOT_TOKEN: z.string().default(""),
   TELEGRAM_CHAT_ID: z.string().default(""),

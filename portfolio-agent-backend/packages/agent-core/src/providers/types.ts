@@ -32,9 +32,18 @@ export interface ToolCall {
   };
 }
 
+export enum ModelRoute {
+  Fast = "fast",
+  Thinking = "thinking",
+}
+
+export interface ChatOptions {
+  model?: ModelRoute;
+}
+
 export interface LLMProvider {
   readonly name: string;
-  chat(messages: ChatMessage[], tools?: ToolDefinition[]): Promise<ChatResponse>;
+  chat(messages: ChatMessage[], tools?: ToolDefinition[], options?: ChatOptions): Promise<ChatResponse>;
   isAvailable(): Promise<boolean>;
   embed(text: string): Promise<number[]>;
 }

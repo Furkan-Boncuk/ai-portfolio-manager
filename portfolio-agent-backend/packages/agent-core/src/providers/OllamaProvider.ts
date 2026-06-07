@@ -1,16 +1,24 @@
 import { getEnv, LLMError } from "@portfolio-agent/shared";
-import type { LLMProvider, ChatMessage, ChatResponse, ToolDefinition, ToolCall } from "./types";
+import type { LLMProvider, ChatMessage, ChatResponse, ToolDefinition, ToolCall, ChatOptions } from "./types";
+import { ModelRoute } from "./types";
+
+export interface OllamaModelConfig {
+  fastModel?: string;
+  thinkingModel?: string;
+}
 
 export class OllamaProvider implements LLMProvider {
   readonly name = "ollama";
   private baseUrl: string;
-  private chatModel: string;
+  private fastModel: string;
+  private thinkingModel: string;
   private embedModel: string;
 
-  constructor() {
+  constructor(models?: OllamaModelConfig) {
     const env = getEnv();
     this.baseUrl = env.OLLAMA_BASE_URL;
-    this.chatModel = env.OLLAMA_CHAT_MODEL;
+    this.fastModel = models?.fastModel ?? env.OLLAMA_FAST_MODEL;
+    this.thinkingModel = models?.thinkingModel ?? env.OLLAMA_THINKING_MODEL;
     this.embedModel = env.OLLAMA_EMBEDDING_MODEL;
   }
 
@@ -32,11 +40,24 @@ export class OllamaProvider implements LLMProvider {
   async chat(
     messages: ChatMessage[],
     tools?: ToolDefinition[],
+    options?: ChatOptions,
+  ): Promise<ChatResponse> {
+    const model = options?.model === ModelRoute.Thinking
+      ? this.thinkingModel
+      : this.fastModel;
+
+    return this.chatWithModel(model, messages, tools);
+  }
+
+  private async chatWithModel(
+    model: string,
+    messages: ChatMessage[],
+    tools?: ToolDefinition[],
   ): Promise<ChatResponse> {
     const url = `${this.baseUrl}/chat`;
 
     const body: Record<string, unknown> = {
-      model: this.chatModel,
+      model,
       messages: messages.map((m) => {
         const msg: Record<string, unknown> = {
           role: m.role,

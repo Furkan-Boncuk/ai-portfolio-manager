@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
+
 export interface EmptyCardProps {
-  children: string;
+  children: ReactNode;
   className?: string;
 }

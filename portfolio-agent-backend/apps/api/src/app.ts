@@ -15,6 +15,7 @@ import { notificationRoutes } from "./routes/notifications";
 import { eventsRoutes } from "./routes/events";
 import { researchRoutes } from "./routes/research";
 import { knowledgeRoutes } from "./routes/knowledge";
+import { settingsRoutes } from "./routes/settings";
 import { getEnv, AppError, SystemConfigurationError } from "@portfolio-agent/shared";
 
 const env = getEnv();
@@ -94,6 +95,7 @@ const app = new Elysia()
       .use(eventsRoutes)
       .use(researchRoutes)
       .use(knowledgeRoutes)
+      .use(settingsRoutes)
   );
 
 export { app };

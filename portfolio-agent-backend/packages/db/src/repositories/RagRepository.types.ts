@@ -1,6 +1,6 @@
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { Db } from "..";
 
-export type DbInstance = NodePgDatabase<Record<string, unknown>>;
+export type DbInstance = Db;
 
 export interface CreateDocumentInput {
   workspaceId: string;

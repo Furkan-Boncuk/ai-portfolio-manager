@@ -1,44 +1,88 @@
 import { Elysia, t } from "elysia";
-import { AgentRunner, OllamaProvider, WebSearchTool, FetchPageTool, RagIngestionTool, RagSearchTool, CryptoPriceTool } from "@portfolio-agent/agent-core";
+import { OllamaProvider, AgentRunner, WebSearchTool, FetchPageTool, RagIngestionTool, RagSearchTool, CryptoPriceTool } from "@portfolio-agent/agent-core";
+import type { OllamaModelConfig } from "@portfolio-agent/agent-core";
 import { getDb } from "@portfolio-agent/db";
 import { RagRepository } from "@portfolio-agent/db/repositories/RagRepository";
+import { getEnv } from "@portfolio-agent/shared";
 import { ChatService } from "../services/chat/ChatService";
+import { SettingsService } from "../services/settings/SettingsService";
 
-const ollama = new OllamaProvider();
-const db = getDb();
-const ragRepo = new RagRepository(db);
-const runner = new AgentRunner([
-  new CryptoPriceTool(),
-  new WebSearchTool(),
-  new FetchPageTool(),
-  new RagIngestionTool((text) => ollama.embed(text), ragRepo),
-  new RagSearchTool((text) => ollama.embed(text), ragRepo),
-]);
-const chatService = new ChatService(runner);
+function createRunner(modelConfig?: OllamaModelConfig) {
+  const db = getDb();
+  const ragRepo = new RagRepository(db);
+  const ollama = new OllamaProvider(modelConfig);
+  const embedFn = (text: string) => ollama.embed(text);
+
+  return new AgentRunner(
+    [
+      new CryptoPriceTool(),
+      new WebSearchTool(),
+      new FetchPageTool(),
+      new RagIngestionTool(embedFn, ragRepo),
+      new RagSearchTool(embedFn, ragRepo),
+    ],
+    undefined,
+    modelConfig,
+  );
+}
+
+function createChatService() {
+  const userId = getEnv().DEFAULT_USER_ID;
+  const db = getDb();
+  const settingsService = new SettingsService(db);
+
+  return {
+    async getRunner() {
+      const prefs = await settingsService.getModelPreferences(userId);
+      const runner = createRunner({
+        fastModel: prefs.fastModel,
+        thinkingModel: prefs.thinkingModel,
+      });
+      return new ChatService(runner);
+    },
+  };
+}
+
+const chatServiceFactory = createChatService();
 
 export const chatRoutes = new Elysia({ prefix: "/chat" })
-  .get("/sessions", () => chatService.listSessions())
+  .get("/sessions", async () => {
+    const chat = await chatServiceFactory.getRunner();
+    return chat.listSessions();
+  })
   .post(
     "/sessions",
-    ({ body }) => chatService.createSession(body.message),
+    async ({ body }) => {
+      const chat = await chatServiceFactory.getRunner();
+      return chat.createSession(body.message);
+    },
     { body: t.Object({ message: t.String() }) },
   )
-  .get("/sessions/:id", ({ params }) => chatService.getSession(params.id))
-  .get("/sessions/:id/messages", ({ params }) =>
-    chatService.getSessionMessages(params.id),
-  )
+  .get("/sessions/:id", async ({ params }) => {
+    const chat = await chatServiceFactory.getRunner();
+    return chat.getSession(params.id);
+  })
+  .get("/sessions/:id/messages", async ({ params }) => {
+    const chat = await chatServiceFactory.getRunner();
+    return chat.getSessionMessages(params.id);
+  })
   .post(
     "/sessions/:id/messages",
-    ({ params, body }) =>
-      chatService.chatInSession(params.id, body.message),
+    async ({ params, body }) => {
+      const chat = await chatServiceFactory.getRunner();
+      return chat.chatInSession(params.id, body.message);
+    },
     { body: t.Object({ message: t.String() }) },
   )
   .patch(
     "/sessions/:id",
-    ({ params, body }) =>
-      chatService.updateSessionTitle(params.id, body.title),
+    async ({ params, body }) => {
+      const chat = await chatServiceFactory.getRunner();
+      return chat.updateSessionTitle(params.id, body.title);
+    },
     { body: t.Object({ title: t.String() }) },
   )
-  .delete("/sessions/:id", ({ params }) =>
-    chatService.deleteSession(params.id),
-  );
+  .delete("/sessions/:id", async ({ params }) => {
+    const chat = await chatServiceFactory.getRunner();
+    return chat.deleteSession(params.id);
+  });

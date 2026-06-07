@@ -1,16 +1,19 @@
 import { drizzle } from "drizzle-orm/node-postgres";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { getEnv } from "@portfolio-agent/shared";
 
-let pool: Pool | null = null;
-let dbInstance: ReturnType<typeof drizzle> | null = null;
+export type Db = NodePgDatabase;
 
-export function getDb() {
+let pool: Pool | null = null;
+let dbInstance: Db | null = null;
+
+export function getDb(): Db {
   if (dbInstance) return dbInstance;
 
   const env = getEnv();
   pool = new Pool({ connectionString: env.DATABASE_URL });
-  dbInstance = drizzle(pool);
+  dbInstance = drizzle(pool) as Db;
 
   return dbInstance;
 }

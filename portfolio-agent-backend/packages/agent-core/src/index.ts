@@ -1,5 +1,7 @@
-export type { LLMProvider, ChatMessage, ChatResponse, ToolDefinition, ToolCall } from "./providers/types";
+export type { LLMProvider, ChatMessage, ChatResponse, ToolDefinition, ToolCall, ChatOptions } from "./providers/types";
+export { ModelRoute } from "./providers/types";
 export { OllamaProvider } from "./providers/OllamaProvider";
+export type { OllamaModelConfig } from "./providers/OllamaProvider";
 export { AgentRunner } from "./AgentRunner";
 export type { Tool } from "./tools/types";
 export type { WebSearchInput, WebSearchResult, WebSearchProvider } from "./tools/WebSearchTool";
