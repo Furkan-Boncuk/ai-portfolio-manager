@@ -112,6 +112,8 @@ export class AgentRunner {
     }
   }
 
+  //TODO: This method is very specific to the financial signal use case. Consider moving it to a separate class or module if more domain-specific methods are added.
+  //TODO: Remove deterministic fallback and require LLM for this functionality, or at least make it optional via constructor parameter.
   async reviewSignal(signal: {
     asset: string;
     direction: string;

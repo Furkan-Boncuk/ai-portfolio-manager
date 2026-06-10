@@ -169,85 +169,102 @@ export class ChatService {
       content: message,
     });
 
-    const encoder = new TextEncoder();
-    const runner = this.runner;
-
     const [savedMessage] = await db
       .insert(messages)
       .values({ sessionId, role: ChatRole.Assistant, content: "" })
       .returning();
 
+    const encoder = new TextEncoder();
+    const runner = this.runner;
+
     return new ReadableStream<Uint8Array>({
-      async start(controller) {
-        const startedEvent = `event: started\ndata: ${JSON.stringify({ messageId: savedMessage!.id })}\n\n`;
-        controller.enqueue(encoder.encode(startedEvent));
+      start(controller) {
+        let closed = false;
 
-        let runnerStream: ReadableStream<StreamChunk>;
-        try {
-          runnerStream = await runner.chatStream(message, chatHistory);
-        } catch {
-          const errEvent = `event: error\ndata: ${JSON.stringify({ message: "Failed to start chat stream." })}\n\n`;
-          controller.enqueue(encoder.encode(errEvent));
-          controller.close();
-          return;
-        }
+        const safeClose = () => {
+          if (closed) return;
+          closed = true;
+          clearInterval(heartbeat);
+          try { controller.close(); } catch { /* ignore */ }
+        };
 
-        const reader = runnerStream.getReader();
-        let fullContent = "";
-        let fullReasoning = "";
+        const safeEnqueue = (data: Uint8Array) => {
+          if (closed) return;
+          try { controller.enqueue(data); } catch { /* ignore */ }
+        };
 
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done || !value) break;
+        const sendError = (msg: string) => {
+          clearInterval(heartbeat);
+          safeEnqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ message: msg })}\n\n`));
+          safeClose();
+        };
 
-            const chunk = value as StreamChunk;
+        safeEnqueue(encoder.encode(`event: started\ndata: ${JSON.stringify({ messageId: savedMessage!.id })}\n\n`));
 
-            if (chunk.reasoning) {
-              fullReasoning += chunk.reasoning;
-              const event = `event: reasoning\ndata: ${JSON.stringify({ content: chunk.reasoning })}\n\n`;
-              controller.enqueue(encoder.encode(event));
-            }
+        const heartbeat = setInterval(() => {
+          safeEnqueue(encoder.encode(": heartbeat\n\n"));
+        }, 15000);
 
-            if (chunk.content) {
-              fullContent += chunk.content;
-              const event = `event: content\ndata: ${JSON.stringify({ delta: chunk.content })}\n\n`;
-              controller.enqueue(encoder.encode(event));
-            }
+        runner.chatStream(message, chatHistory)
+          .then(async (runnerStream) => {
+            clearInterval(heartbeat);
+            const reader = runnerStream.getReader();
+            let fullContent = "";
+            let fullReasoning = "";
 
-            if (chunk.done) {
-              await db
-                .update(messages)
-                .set({
-                  content: fullContent,
-                  metadata: fullReasoning ? { reasoning: fullReasoning.trim() } : {},
-                })
-                .where(eq(messages.id, savedMessage!.id));
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done || !value) break;
 
-              if (session.title === "New conversation" && fullContent.length > 0) {
-                await db
-                  .update(chatSessions)
-                  .set({ title: truncate(fullContent) })
-                  .where(eq(chatSessions.id, sessionId));
+                const chunk = value as StreamChunk;
+
+                if (chunk.reasoning) {
+                  fullReasoning += chunk.reasoning;
+                  safeEnqueue(encoder.encode(`event: reasoning\ndata: ${JSON.stringify({ content: chunk.reasoning })}\n\n`));
+                }
+
+                if (chunk.content) {
+                  fullContent += chunk.content;
+                  safeEnqueue(encoder.encode(`event: content\ndata: ${JSON.stringify({ delta: chunk.content })}\n\n`));
+                }
+
+                if (chunk.done) {
+                  await db
+                    .update(messages)
+                    .set({
+                      content: fullContent,
+                      metadata: fullReasoning ? { reasoning: fullReasoning.trim() } : {},
+                    })
+                    .where(eq(messages.id, savedMessage!.id));
+
+                  if (session.title === "New conversation" && fullContent.length > 0) {
+                    await db
+                      .update(chatSessions)
+                      .set({ title: truncate(fullContent) })
+                      .where(eq(chatSessions.id, sessionId));
+                  }
+
+                  await db
+                    .update(chatSessions)
+                    .set({ updatedAt: sql`now()` })
+                    .where(eq(chatSessions.id, sessionId));
+
+                  safeEnqueue(encoder.encode(`event: done\ndata: ${JSON.stringify({ messageId: savedMessage!.id, content: fullContent, reasoning: fullReasoning })}\n\n`));
+                  safeClose();
+                  return;
+                }
               }
-
-              await db
-                .update(chatSessions)
-                .set({ updatedAt: sql`now()` })
-                .where(eq(chatSessions.id, sessionId));
-
-              const doneEvent = `event: done\ndata: ${JSON.stringify({ messageId: savedMessage!.id, content: fullContent, reasoning: fullReasoning })}\n\n`;
-              controller.enqueue(encoder.encode(doneEvent));
-              controller.close();
-              return;
+              safeClose();
+            } catch {
+              sendError("Stream error.");
+            } finally {
+              reader.releaseLock();
             }
-          }
-          controller.close();
-        } catch (error) {
-          controller.error(error);
-        } finally {
-          reader.releaseLock();
-        }
+          })
+          .catch(() => {
+            sendError("Failed to start chat stream.");
+          });
       },
     });
   }

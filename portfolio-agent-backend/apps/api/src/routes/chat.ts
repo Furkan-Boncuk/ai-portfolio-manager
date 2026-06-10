@@ -84,6 +84,7 @@ export const chatRoutes = new Elysia({ prefix: "/chat" })
       set.headers["content-type"] = "text/event-stream";
       set.headers["cache-control"] = "no-cache";
       set.headers["connection"] = "keep-alive";
+      set.headers["x-accel-buffering"] = "no";
       return chat.chatInSessionStream(params.id, query.message);
     },
     { query: t.Object({ message: t.String() }) },
